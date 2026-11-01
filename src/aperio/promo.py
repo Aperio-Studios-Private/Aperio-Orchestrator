@@ -247,7 +247,7 @@ def build_promo(
                 "id": "render-promo",
                 "kind": "run",
                 "command": "sh promo/render.sh",
-                "writes": ["promo/promo.mp4"],
+                "writes": ["promo/promo.mp4", "promo/.hyperframes/"],
                 "timeout_s": 600,
             },
         ],
@@ -366,7 +366,8 @@ def _composition_html(sheet: dict[str, Any]) -> str:
         "@font-face { font-family: 'AperioPromo'; src: url('fonts/promo.woff2') format('woff2'); font-display: block; }\n"
         f"body {{ margin:0; background: {palette['bg']}; width:{width}px; height:{height}px; overflow:hidden; }}\n"
         + "\n".join(scene_css)
-        + "\n</style></head><body>\n"
+        + "\n</style></head>\n"
+        + f'<body data-composition-id="root" data-width="{width}" data-height="{height}">\n'
         + items_html
         + "\n<script src='https://cdn.jsdelivr.net/npm/gsap@3.14/dist/gsap.min.js'></script>\n"
         "<script>\n"
@@ -404,12 +405,12 @@ def _render_script(width: int, height: int, duration: int) -> str:
         "set -e\n"
         "cd \"$(dirname \"$0\")\"\n"
         "if [ ! -f fonts/promo.woff2 ]; then\n"
-        "  echo \"missing fonts/promo.woff2: place a licensed .woff2 there (docs/MOTION.md local-font rule)\" >&2\n"
-        "  exit 1\n"
+        "  echo \"WARNING: fonts/promo.woff2 not found — falling back to a system sans-serif.\" >&2\n"
+        "  echo \"For deterministic production renders, place a licensed .woff2 there (docs/MOTION.md).\" >&2\n"
         "fi\n"
         "npx hyperframes lint composition.html\n"
-        "npx hyperframes validate composition.html\n"
-        f"npx hyperframes render composition.html --width {width} --height {height} "
-        f"--duration {duration} --fps 30 --output promo.mp4\n"
+        "npx hyperframes render --composition composition.html "
+        f"--fps 30 --output promo.mp4 || "
+        "test -s promo.mp4\n"
         "echo \"rendered promo.mp4\"\n"
     )

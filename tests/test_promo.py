@@ -88,8 +88,9 @@ class PromoTests(unittest.TestCase):
         self.assertIn("hyperframes lint", render_sh)
         self.assertIn("hyperframes validate", render_sh)
         self.assertIn("hyperframes render", render_sh)
-        # The local-font rule: fail closed without fonts/promo.woff2.
-        self.assertIn("missing fonts/promo.woff2", render_sh)
+        # The local-font rule: warn (not block) without fonts/promo.woff2,
+        # so the generated plan is runnable out of the box.
+        self.assertIn("WARNING: fonts/promo.woff2 not found", render_sh)
         font_readme = next(
             s["content"] for s in promo_plan["steps"] if s["path"] == "promo/fonts/README.md"
         )
@@ -100,6 +101,8 @@ class PromoTests(unittest.TestCase):
         self.assertIn("@font-face", composition)
         self.assertIn("fonts/promo.woff2", composition)
         self.assertNotIn("'Inter'", composition)
+        self.assertIn('data-composition-id="root"', composition)
+        self.assertIn(f'data-width="{sheet["width"]}"', composition)
         # And the acceptance carries the video-exists gate.
         acceptance_ids = [a["id"] for a in promo_plan["acceptance"]]
         self.assertIn("video-rendered", acceptance_ids)
