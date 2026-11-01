@@ -80,7 +80,7 @@ class PromoTests(unittest.TestCase):
         render_steps = [s for s in promo_plan["steps"] if s["kind"] == "run"]
         self.assertEqual(len(render_steps), 1)
         self.assertEqual(render_steps[0]["command"], "sh promo/render.sh")
-        self.assertEqual(render_steps[0]["writes"], ["promo/promo.mp4"])
+        self.assertEqual(render_steps[0]["writes"], ["promo/promo.mp4", "promo/.hyperframes/"])
         # The motion contract's gate lives in the script: lint && validate before render.
         render_sh = next(
             s["content"] for s in promo_plan["steps"] if s["path"] == "promo/render.sh"
