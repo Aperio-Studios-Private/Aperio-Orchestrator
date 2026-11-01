@@ -107,6 +107,8 @@ from .security import scan as security_scan
 from .skillgen import SkillError, list_skills
 from .skillgen import create as skill_create
 from .skillgen import validate as skill_validate
+from .skillspector import format_report as format_skillspector
+from .skillspector import scan as skillspector_scan
 from .store import Project, StoreError
 from .todo import accept as todo_accept
 from .todo import add as todo_add
@@ -632,6 +634,24 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     """Serve Aperio's read-only advisors over JSON-RPC 2.0 on stdio."""
     mcp_serve(default_project=args.project or "")
     return 0
+
+
+def cmd_skill_verify(args: argparse.Namespace) -> int:
+    if getattr(args, "skill_command", None) == "verify":
+        target = Path(args.path).expanduser()
+        try:
+            report = skillspector_scan(target)
+        except FileNotFoundError as exc:
+            print(f"apero: {exc}", file=sys.stderr)
+            return 2
+        risk = report["risk_assessment"]
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(format_skillspector(report))
+        # Gate: DO NOT INSTALL blocks (exit 1); CAUTION warns but allows.
+        return 1 if risk["recommendation"] == "block installation" else 0
+    raise ModelError(f"unknown skill action: {getattr(args, 'skill_command', None)!r}")
 
 
 def cmd_lesson(args: argparse.Namespace) -> int:
@@ -1388,6 +1408,13 @@ def build_parser() -> argparse.ArgumentParser:
     skill_validate_parser.add_argument("name")
     skill_validate_parser.add_argument("--json", action="store_true")
     skill_validate_parser.set_defaults(func=cmd_skill)
+    skill_verify_parser = skill.add_parser(
+        "verify",
+        help="SkillSpector-style security verification of a skill directory before installing it",
+    )
+    skill_verify_parser.add_argument("path", help="skill directory (or single SKILL.md) to scan")
+    skill_verify_parser.add_argument("--json", action="store_true")
+    skill_verify_parser.set_defaults(func=cmd_skill_verify)
 
     p = sub.add_parser("security", help="bounded local secret scan")
     security = p.add_subparsers(dest="security_command", required=True)
