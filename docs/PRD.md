@@ -786,7 +786,7 @@ Measured on 2026-10-26 in the fresh v2 tree. Re-measure before relying on any ro
 | Item | Result | Command or evidence |
 |---|---|---|
 | Core unit tests | **59 passed** | `PYTHONPATH=src python3 -m unittest discover -s tests -v` |
-| Adapter tests | **23 passed** | same command; `tests/test_adapter.py` |
+| Adapter tests | **24 passed** | same command; `tests/test_adapter.py` |
 | Drift tests | **5 passed** | same command; `tests/test_drift.py` |
 | Mesh tests | **5 passed** | same command; `tests/test_mesh.py` |
 | Mediator tests | **6 passed** | same command; `tests/test_mediator.py` |
@@ -804,7 +804,7 @@ Measured on 2026-10-26 in the fresh v2 tree. Re-measure before relying on any ro
 | Audit tests | **16 passed** | same command; `tests/test_audit.py` |
 | Repo tests | **4 passed** | same command; `tests/test_repo.py` |
 | Installer tests | **23 passed** | same command; `tests/test_installer.py` |
-| Total test suite | **358 passed** | same command |
+| Total test suite | **359 passed** | same command |
 | CLI end-to-end | **passed**: unapproved run refused, approved run applied, acceptance passed, review confirmed, done | `tests/test_cli.py::test_full_cli_flow` |
 | Demo project | **applied, verified, reviewed, done** | `examples/demo-site-plan.json` through the CLI |
 | Rollback | **restores modified files and removes created files** | `tests/test_core.py::test_rollback_restores_modified_and_removes_created` |

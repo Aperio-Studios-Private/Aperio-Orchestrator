@@ -343,16 +343,15 @@ class AdapterTests(unittest.TestCase):
         )
         record = result["steps"][0]["sandbox"]
         self.assertTrue(record["active"])
-        from aperio.sandbox import kind as sandbox_kind
 
         self.assertEqual(record["kind"], sandbox_kind())
 
     def test_sandboxed_host_step_cannot_write_outside_the_workspace(self) -> None:
         # The unsandboxed case only DETECTS outside writes; the sandboxed
-        # case must PREVENT them. The host's writable boundary is its
-        # disposable workspace (a host review caught the boundary being the
-        # whole project): a write to a REAL project file outside the
-        # workspace must be blocked on every backend, and the victim file
+        # case must PREVENT them. The claude host here has no native
+        # sandboxing, so it gets the outer sandbox-exec with the workspace as
+        # its only project-adjacent write boundary: a write to a REAL project
+        # file outside the workspace must be blocked, and the victim file
         # must survive byte-identical.
         victim = self.root / "victim.txt"
         victim.write_text("untouched", encoding="utf-8")
@@ -379,7 +378,42 @@ class AdapterTests(unittest.TestCase):
         # caught this test passing vacuously when no backend exists).
         record = result["steps"][0]["sandbox"]
         self.assertTrue(record["active"], record)
+
         self.assertEqual(record["kind"], sandbox_kind())
+
+    def test_codex_native_sandbox_used_for_codex_host(self) -> None:
+        # Nested seatbelts break live codex tooling (sandbox_apply and the
+        # patch tool fail under an outer sandbox-exec — the live runs caught
+        # it), so codex is dispatched with its own workspace-write sandbox
+        # instead: the command carries workspace-write, no sandbox-exec
+        # wrapper, and the record names the native boundary.
+        codex_host = self.root / "fake-codex"
+        codex_host.write_text(
+            "#!/usr/bin/env python3\n"
+            "from pathlib import Path\n"
+            "(root := Path.cwd()).mkdir(exist_ok=True)\n"
+            "(Path.cwd() / 'site').mkdir(exist_ok=True)\n"
+            "(Path.cwd() / 'site' / 'index.html').write_text('<h1>from codex</h1>')\n"
+            "print('codex done')\n",
+            encoding="utf-8",
+        )
+        codex_host.chmod(codex_host.stat().st_mode | stat.S_IXUSR)
+        with mock.patch.dict(os.environ, {"APERIO_HOST_CODEX": str(codex_host)}):
+            _task, plan = make_plan(
+                self.project,
+                host="codex",
+                prompt="Create site/index.html with the exact text from host.",
+                writes=["site/index.html"],
+                sandbox=True,
+            )
+            result = apply_plan(self.project, plan, actor="builder")
+        self.assertEqual(result["status"], "applied", result)
+        record = result["steps"][0]["sandbox"]
+        self.assertEqual(record["kind"], "host-native")
+        self.assertEqual(record["mode"], "workspace-write")
+        command = result["steps"][0]["command"]
+        self.assertIn("workspace-write", command)
+        self.assertNotIn("sandbox-exec", command)
 
     def test_sandbox_without_backend_fails_closed_for_host_steps(self) -> None:
         # A sandboxed host step with no sandbox backend must be refused, not

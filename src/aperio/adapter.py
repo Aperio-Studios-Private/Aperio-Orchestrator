@@ -35,6 +35,8 @@ class HostError(RuntimeError):
 EXCLUDED_DIRS = {
     ".git",
     ".aperio",
+    ".host-home",
+    ".tmp",
     "node_modules",
     "__pycache__",
     ".venv",
@@ -114,7 +116,14 @@ def _model_for(host: str) -> str:
     return os.environ.get(f"APERIO_MODEL_{host.upper()}", "").strip()
 
 
-def _command_for(host: str, binary: str, prompt: str, step: Step) -> list[str]:
+def _command_for(
+    host: str, binary: str, prompt: str, step: Step, *, sandboxed: bool = False
+) -> list[str]:
+    """Build the host's argv. With `sandboxed` (plan.sandbox), hosts are
+    granted their own workspace-write mode: Aperio's outer sandbox-exec has
+    already confined writes to the disposable workspace, so the inner host
+    sandbox can permit writes there — with both layers, the real project
+    stays read-only to the host."""
     model = _model_for(host)
     if host == "claude":
         return [
@@ -234,6 +243,38 @@ def _copy_workspace(project: Project, workspace: Path) -> None:
         shutil.copy2(path, destination)
 
 
+_HOST_STATE_SEEDS = {
+    "codex": ("config.toml", "auth.json"),
+    "claude": (".claude.json", "settings.json"),
+}
+
+
+def _seed_host_state(host: str, host_home: Path) -> None:
+    """Copy the host's real config files into the isolated host-home.
+
+    Live hosts need their configuration and credentials to function; the
+    sandboxed dispatch points CODEX_HOME/CLAUDE_CONFIG_DIR at an in-workspace
+    directory, which must be seeded or the host fails at startup. Files that
+    do not exist are skipped.
+    """
+    seeds = _HOST_STATE_SEEDS.get(host, ())
+    real_home = Path.home() / HOST_STATE_DIRS_NAME.get(host, f".{host}")
+    for name in seeds:
+        source = real_home / name
+        if source.is_file():
+            target = host_home / name
+            if not target.exists():
+                shutil.copy2(source, target)
+
+
+HOST_STATE_DIRS_NAME = {
+    "codex": ".codex",
+    "claude": ".claude",
+    "dsh": ".dsh",
+    "goose": ".goose",
+}
+
+
 def _scan(root: Path) -> dict[str, tuple[str, str]]:
     result: dict[str, tuple[str, str]] = {}
     for path in _iter_files(root):
@@ -323,6 +364,23 @@ def run_host_step(project: Project, plan: Plan, step: Step, run_id: str) -> Host
     _copy_workspace(project, workspace)
     before = _scan(workspace)
     env = os.environ.copy()
+    # Live AI hosts keep their state INSIDE the disposable workspace: the
+    # sandbox's write boundary covers it, cleanup removes it with the
+    # workspace, and the deliverable scan excludes it (a host's session
+    # store is not a deliverable).
+    host_home = workspace / ".host-home" / step.host
+    host_home.mkdir(parents=True, exist_ok=True)
+    # The host's temp dir moves into the workspace too: the sandbox profile
+    # denies writes under the system TMPDIR (/var/folders/...), and the
+    # host's patch tool stages there — without this redirect every patch
+    # fails with Operation not permitted (the live run caught it).
+    host_tmp = workspace / ".tmp"
+    host_tmp.mkdir(parents=True, exist_ok=True)
+    # Seed the isolated host state with the host's real config: an empty
+    # CODEX_HOME means no auth or configuration, and the host fails before
+    # doing any work (the live run caught it). Sessions and logs are still
+    # created fresh inside the disposable workspace and cleaned with it.
+    _seed_host_state(step.host, host_home)
     env.update(
         {
             "APERIO_TASK_ID": plan.task_id,
@@ -330,13 +388,36 @@ def run_host_step(project: Project, plan: Plan, step: Step, run_id: str) -> Host
             "APERIO_RUN_ID": run_id,
             "APERIO_WORKSPACE": str(workspace),
             "APERIO_ALLOWED_PATHS": os.pathsep.join(step.writes),
+            "CODEX_HOME": str(host_home),
+            "CLAUDE_CONFIG_DIR": str(host_home),
+            "TMPDIR": str(host_tmp) + "/",
+            "TMP": str(host_tmp) + "/",
+            "TEMP": str(host_tmp) + "/",
         }
     )
-    # Optional OS sandbox for host steps (previously shell/read only): the
-    # workspace lives inside the project, so the same write boundary covers
-    # it. Fail closed when plan.sandbox is set and no backend exists.
+    # Optional sandbox for host steps. Live hosts with native sandboxing
+    # (codex) are dispatched in their own workspace-write mode with state
+    # and TMPDIR redirected into the disposable workspace: nesting an outer
+    # sandbox-exec around them breaks their tooling (sandbox_apply and the
+    # patch tool fail — the live runs caught it), and their own sandbox
+    # provides the boundary (proven: writes outside the workspace are
+    # blocked, writes inside succeed). Hosts without native sandboxing fall
+    # back to the outer sandbox-exec (workspace-only writes). Fail closed
+    # when plan.sandbox is set and neither layer is available.
     sandbox_record: dict[str, object] = {"requested": False, "active": False, "kind": None}
-    if plan.sandbox:
+    native_sandbox_hosts = {"codex"}
+    if plan.sandbox and step.host in native_sandbox_hosts:
+        sandbox_record = {
+            "requested": True,
+            "active": True,
+            "kind": "host-native",
+            "mode": "workspace-write",
+            "note": (
+                "the host's own workspace-write sandbox is the boundary; state "
+                "and TMPDIR are redirected into the disposable workspace"
+            ),
+        }
+    elif plan.sandbox:
         from .sandbox import SandboxError, wrap_argv
 
         try:
@@ -353,6 +434,8 @@ def run_host_step(project: Project, plan: Plan, step: Step, run_id: str) -> Host
                 workspace,
                 workspace,
                 extra_visible=[Path(binary).parent],
+                host=step.host,
+                protected=project.root,
             )
         except SandboxError as exc:
             raise HostError(f"step {step.id}: {exc}") from exc

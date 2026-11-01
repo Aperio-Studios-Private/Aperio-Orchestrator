@@ -18,7 +18,7 @@ is not reproducible by a command, do not treat it as true.
 | Python | 3.10+ (CPU-independent, standard library only) |
 | License | MIT; see `LICENSE` |
 | Old repository | Private archive; do not force-push, publish, or copy its history. See `docs/ARCHIVE.md` |
-| Current tests | 358 passing at handoff; re-run them, do not cite this number from memory |
+| Current tests | 359 passing at handoff; re-run them, do not cite this number from memory |
 
 ## 2. What Aperio is
 
@@ -51,7 +51,7 @@ git diff --check
 
 Expected at handoff:
 
-- **358 tests pass**
+- **359 tests pass**
 - `ruff check src tests` exits 0
 - `aperio drift` prints `DRIFT CHECK: clean`
 - `git diff --check` is silent
@@ -193,7 +193,7 @@ changing scope.
 - Local mesh store, mediator, installer, PowerShell installer under `pwsh` on macOS.
 - Optional `sandbox-exec` shell isolation and fail-closed behavior.
 - Toolchain installer, dashboard, secret scan, versioned state, recovery, resume.
-- Full suite: 358 tests; CI on Python 3.10/3.12/3.14.
+- Full suite: 359 tests; CI on Python 3.10/3.12/3.14.
 
 ### Deferred, not blockers
 
@@ -251,7 +251,7 @@ commit.
 
 - [ ] `git status --short` is clean.
 - [ ] `git rev-parse HEAD` equals `origin/main`.
-- [ ] 358 tests pass locally (or the difference is recorded).
+- [ ] 359 tests pass locally (or the difference is recorded).
 - [ ] Ruff, drift, and diff checks pass.
 - [ ] CI result is recorded for the HEAD being handed off.
 - [ ] `docs/STATUS.md` has no claim that the code contradicts.

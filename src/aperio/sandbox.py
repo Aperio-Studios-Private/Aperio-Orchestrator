@@ -45,6 +45,45 @@ def _profile(root: Path) -> str:
     )
 
 
+def _escape(path: Path) -> str:
+    return str(path.resolve()).replace("\\", "\\\\").replace('"', '\\"')
+
+
+# Known per-host state directories: live AI hosts need their session/config
+# stores writable to function (Codex: ~/.codex sessions and PATH aliases;
+# Claude: ~/.claude). Everything outside workspace + state dirs + tmp stays
+# read-only — that is the boundary that protects the real project.
+HOST_STATE_DIRS = {
+    "codex": ".codex",
+    "claude": ".claude",
+    "dsh": ".dsh",
+    "goose": ".goose",
+}
+
+
+def host_profile(workspace: Path, protected: Path | None = None) -> str:
+    """Profile for live AI hosts under `plan.sandbox: true`.
+
+    Deny-default profiles broke live hosts in ways that produced no denial
+    logs and even broke the hosts' own nested sandbox_apply, while an
+    allow-default sandbox worked — so the host profile inverts the recipe:
+    everything is allowed EXCEPT file writes under the REAL project root,
+    which are denied explicitly (SBPL: later, more-specific rules win, so
+    the re-allow for the disposable workspace — nested inside the project —
+    overrides the deny). The protected asset is the project itself: the
+    sandboxed host cannot touch the work it is meant to review or extend,
+    while every operation a live host needs (XPC, IPC, preferences, its own
+    state dir, network for the model API) remains available. The host's own
+    `--sandbox workspace-write` mode provides the second layer, blocking
+    writes outside its working directory.
+    """
+    rules = ["(version 1)\n", "(allow default)\n"]
+    if protected is not None:
+        rules.append(f'(deny file-write* (subpath "{_escape(protected)}"))\n')
+    rules.append(f'(allow file-write* (subpath "{_escape(workspace)}"))\n')
+    return "".join(rules)
+
+
 def wrap(command: str, root: Path, cwd: Path) -> tuple[list[str], dict[str, object]]:
     """Return an argv wrapper and an evidence record for an isolated command."""
     backend = kind()
@@ -79,12 +118,15 @@ def wrap_argv(
     cwd: Path,
     *,
     extra_visible: list[Path] | None = None,
+    host: str | None = None,
+    protected: Path | None = None,
 ) -> tuple[list[str], dict[str, object]]:
     """Wrap an argv-list command (host dispatch) in the OS sandbox.
 
-    Same profile and fail-closed rules as wrap(); the command is exec'd
-    directly instead of through /bin/sh -c because the host adapter already
-    builds an argv.
+    Live AI hosts get the tuned host profile (state dir writable, network
+    allowed for the model API, workspace as the only project-adjacent write
+    boundary); everything else uses the strict profile. Fail-closed rules
+    are identical.
     """
     backend = kind()
     if backend is None:
@@ -92,8 +134,11 @@ def wrap_argv(
     if backend == "sandbox-exec":
         if not Path("/usr/bin/sandbox-exec").is_file():
             raise SandboxError("sandbox-exec is not installed at /usr/bin/sandbox-exec")
-        argv = ["/usr/bin/sandbox-exec", "-p", _profile(root), *command]
-        return argv, {"requested": True, "active": True, "kind": backend}
+        profile = _profile(root)
+        if host is not None:
+            profile = host_profile(root, protected=protected)
+        argv = ["/usr/bin/sandbox-exec", "-p", profile, *command]
+        return argv, {"requested": True, "active": True, "kind": backend, "profile": "host" if host is not None else "strict"}
     # A dedicated writable tmp dir instead of all of /tmp: binding /tmp
     # wholesale would make the project writable too whenever the project
     # lives under /tmp (CI runners do exactly that), defeating the boundary

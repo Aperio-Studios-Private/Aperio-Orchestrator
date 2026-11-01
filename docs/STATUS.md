@@ -9,7 +9,7 @@
 | Item | Result | Evidence |
 |---|---|---|
 | Core unit tests | 59 passed | `PYTHONPATH=src python3 -m unittest discover -s tests -v` |
-| Adapter tests | 23 passed | same command; `tests/test_adapter.py` |
+| Adapter tests | 24 passed | same command; `tests/test_adapter.py` |
 | Drift tests | 5 passed | same command; `tests/test_drift.py` |
 | Mesh tests | 5 passed | same command; `tests/test_mesh.py` |
 | Mediator tests | 6 passed | same command; `tests/test_mediator.py` |
@@ -40,12 +40,12 @@
 | Independent host review of the SkillSpector verifier | fresh-context Codex review confirmed first round, zero findings; the acceptance evidence ran the verifier suite plus a LIVE scan of a malicious fixture (injection + credential access + exec) that was blocked with exit 1 and per-category findings, and a clean skill that passed SAFE | review `review-4f4c0fd71a`, task `task-ss1` in the temporary goldfish project |
 | SkillSpector verifier | `apero skill verify <dir>` statically scans a skill directory BEFORE installation (never executes it): prompt-injection/anti-refusal/exfiltration/credential regex categories, Trojan-Source bidi and zero-width character detection, whitespace padding, AST behavioral rules for bundled Python (exec/eval/compile/__import__/subprocess/os.system/reflective getattr), weighted risk score with the executable multiplier, and the SkillSpector gate mapping (SAFE=allow, CAUTION=surface to owner, DO NOT INSTALL=block with exit 1). Adapted from NVIDIA SkillSpector (Apache-2.0) as a stdlib-only port (attribution in module docstring); static-only limits documented | `src/aperio/skillspector.py`; `src/aperio/cli.py::cmd_skill_verify`; `tests/test_skillspector.py` |
 | Promo tests | 13 passed | same command; `tests/test_promo.py` |
-| SkillSpector tests | 12 passed |
+| SkillSpector tests | 13 passed |
 | Lessons tests | 8 passed | same command; `tests/test_lessons.py` |
 | MCP tests | 14 passed | same command; `tests/test_mcp.py` |
 | Installer tests | 23 passed | same command; `tests/test_installer.py` |
 | PowerShell installer | install, launcher version, uninstall, check, update with backup, and rollback pass under `pwsh` 7.6.7 on macOS | `tests/test_installer.py::test_powershell_installer`, `test_powershell_update_check_and_rollback` |
-| Total test suite | 358 passed | same command |
+| Total test suite | 359 passed | same command |
 | CLI end-to-end | passed | `tests/test_cli.py::test_full_cli_flow` |
 | Discovery core | 10 universal + 10 conditional questions persist; evidence, research requests, explicit owner waivers with review dates, and readiness survive restart | `tests/test_discovery.py`; `aperio discover status` |
 | Discovery plan gate | a valid plan is refused until discovery is ready; an explicit owner waiver allows it with a warning; a plan is invalidated if discovery changes before approval or run; plan body and discovery digest are checked again at run | `tests/test_cli.py::test_plan_without_discovery_is_refused`; `tests/test_discovery.py::test_plan_is_invalidated_by_discovery_change`, `test_plan_body_tamper_after_approval_is_refused` |
@@ -134,7 +134,7 @@
 - Live host dispatch for OpenCode, KiloCode, Cline, and agy; their command shapes are tested, but live runs are deferred until those hosts are actually used.
 - A distributed or live two-host mesh; the current message store is local and persistent.
 - A real host-to-host exchange over that store.
-- Live sandboxed-host proof, measured 2026-10-29: a real Codex dispatch under `plan.sandbox: true` on macOS ran with active sandbox-exec isolation and was blocked from writing outside the project (the outside victim file was never created), but the host itself exited 1 — sandbox-exec's deny-default profile denies operations Codex needs (PATH aliases, in-process app-server client). The boundary held; the host is not yet productive under it. A profile tuned for real hosts (or bwrap on Linux) is future work. Evidence: run recorded in the temporary project `aperio-sbx-live-*` (not retained).
+- Live sandboxed-host proof, updated 2026-11-01: a real Codex dispatch under `plan.sandbox: true` on macOS is now PRODUCTIVE under the tuned host sandbox — run applied with zero violations, the host's own workspace-write sandbox blocked the attempted outside write (the victim file was never created), and the built page was applied to the project. The path there was measured: deny-default and deny-all-writes profiles broke Codex's own sandbox_apply and patch tool, so live hosts with native sandboxing (codex) are dispatched in their own workspace-write mode with state (CODEX_HOME) and TMPDIR redirected into the disposable workspace, and the outer sandbox-exec is dropped for them (nested seatbelts broke the host's tooling); hosts without native sandboxing keep the outer sandbox-exec. An earlier measured attempt (2026-10-29) under the deny-default profile had the boundary hold while the host was not productive — that history is why the tuned profile exists.ran with active sandbox-exec isolation and was blocked from writing outside the project (the outside victim file was never created), but the host itself exited 1 — sandbox-exec's deny-default profile denies operations Codex needs (PATH aliases, in-process app-server client). The boundary held; the host is not yet productive under it. A profile tuned for real hosts (or bwrap on Linux) is future work. Evidence: run recorded in the temporary project `aperio-sbx-live-*` (not retained).
 - Native Windows execution of `aperio.cmd`; the PowerShell installer and update/rollback pass under `pwsh` on macOS.
 - Full 138-field discovery module catalog and expanded read-only inspectors; the `discover` command records 10 universal and 10 conditional questions, evidence references, research requests, explicit owner waivers with review dates, readiness, and blocks `plan` until discovery is ready. The full domain catalog is not loaded.
 
@@ -145,7 +145,7 @@
 
 ## Known limits
 
-- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 358-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
+- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 359-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
 - Host steps are OS-sandboxed only when a plan sets `sandbox: true` (same boundary as shell/read steps); otherwise changes are detected after execution. Sandboxed host dispatch is proven with the fake host; a live host under the sandbox is not yet recorded.
 - `review --host` supports only the reviewer adapters (claude, codex, dsh, goose); opencode, kilocode, cline, and agy are dispatch-only adapters for `run`.
 - URL inspection rejects private and credential URLs and revalidates redirects, but DNS rebinding during host resolution is not fully prevented.
