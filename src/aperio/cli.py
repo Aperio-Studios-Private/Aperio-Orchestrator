@@ -93,6 +93,9 @@ from .readiness import format_status as format_readiness
 from .readiness import status as readiness_status
 from .repo import facts as repo_facts
 from .repo import format_facts as format_git
+from .retro import RetroError
+from .retro import format_retro as format_retro_report
+from .retro import retro as run_retro
 from .runner import (
     RunError,
     apply_plan,
@@ -627,6 +630,20 @@ def cmd_promo(args: argparse.Namespace) -> int:
         for scene in sheet["scenes"]:
             print(f"  {scene['start']:>6.2f}s  {scene['name']:<10} {scene.get('text', '')}")
         print("  next: approve and run the generated promo plan (see --json)")
+    return 0
+
+
+def cmd_retro(args: argparse.Namespace) -> int:
+    project = _project(args)
+    try:
+        result = run_retro(project, args.task_id)
+    except RetroError as exc:
+        print(f"apero: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(format_retro_report(result))
     return 0
 
 
@@ -1255,6 +1272,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="serve Aperio's read-only advisors over JSON-RPC 2.0 on stdio (MCP)",
     )
     p.set_defaults(func=cmd_mcp)
+
+    p = sub.add_parser(
+        "retro",
+        help="environment retrospective: turn a done task's failures into improvements",
+    )
+    p.add_argument("task_id")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_retro)
 
     p = sub.add_parser(
         "promo",
