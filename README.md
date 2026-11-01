@@ -10,14 +10,30 @@ The previous repository accumulated a large layer of reports, audits, generated 
 
 ## Quick start
 
+**One command for a new project:**
+
+```bash
+apero start ~/my-project --name "My Project" --ask "Build me a landing page"
+```
+
+That's it. `start` initializes the project, satisfies all plan gates (learning, todo, readiness, discovery), and tells you what to do next. Then follow `apero next` to fly the loop.
+
+**One command for an existing project:**
+
+```bash
+cd ~/existing-project
+apero start .
+```
+
+Aperio wraps your existing files — creates `.aperio/` alongside them without touching anything you already have.
+
+**Install:**
+
 ```bash
 git clone https://github.com/Aperio-Studios-Private/Aperio-Orchestrator.git
-cd aperio-orchestrator
+cd Aperio-Orchestrator
 ./install.sh
 aperio --version
-./install.sh --check
-./install.sh --update
-./install.sh --rollback
 ```
 
 PowerShell 7:
@@ -26,7 +42,7 @@ PowerShell 7:
 pwsh -File install.ps1
 ```
 
-The installer copies the package to `~/.local/share/aperio`, creates `~/.local/bin/aperio`, and installs the skill under `~/.claude/skills/aperio`. The `/aperio` entry point is the skill; no duplicate slash-command file is installed. The installer does not edit host settings, use sudo, or download anything. The host's ability to load the skill is not yet independently verified.
+The installer copies the package to `~/.local/share/aperio`, creates `~/.local/bin/aperio`, and installs the skill (with references) under `~/.claude/skills/aperio`. The installer does not edit host settings, use sudo, or download anything. The host's ability to load the skill is not yet independently verified.
 
 To test without installing:
 
