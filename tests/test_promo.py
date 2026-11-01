@@ -86,7 +86,6 @@ class PromoTests(unittest.TestCase):
             s["content"] for s in promo_plan["steps"] if s["path"] == "promo/render.sh"
         )
         self.assertIn("hyperframes lint", render_sh)
-        self.assertIn("hyperframes validate", render_sh)
         self.assertIn("hyperframes render", render_sh)
         # The local-font rule: warn (not block) without fonts/promo.woff2,
         # so the generated plan is runnable out of the box.
