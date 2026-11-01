@@ -410,7 +410,7 @@ def _render_script(width: int, height: int, duration: int) -> str:
         "fi\n"
         "npx hyperframes lint composition.html\n"
         "npx hyperframes render --composition composition.html "
-        f"--fps 30 --output promo.mp4 || "
+        "--fps 30 --output promo.mp4 || "
         "test -s promo.mp4\n"
         "echo \"rendered promo.mp4\"\n"
     )
