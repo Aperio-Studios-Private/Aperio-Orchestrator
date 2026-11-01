@@ -112,6 +112,7 @@ from .skillgen import create as skill_create
 from .skillgen import validate as skill_validate
 from .skillspector import format_report as format_skillspector
 from .skillspector import scan as skillspector_scan
+from .start import start_project
 from .store import Project, StoreError
 from .todo import accept as todo_accept
 from .todo import add as todo_add
@@ -644,6 +645,22 @@ def cmd_retro(args: argparse.Namespace) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
         print(format_retro_report(result))
+    return 0
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    result = start_project(
+        args.directory,
+        name=args.name or "",
+        ask=args.ask or "",
+    )
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(f"Aperio ready: {result['project']}")
+        print(f"  ask: {result['ask']}")
+        print("  all plan gates satisfied")
+        print("  next: aperio next  (or aperio plan <plan.json> to build)")
     return 0
 
 
@@ -1272,6 +1289,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="serve Aperio's read-only advisors over JSON-RPC 2.0 on stdio (MCP)",
     )
     p.set_defaults(func=cmd_mcp)
+
+    p = sub.add_parser(
+        "start",
+        help="one command: init a project, satisfy all gates, ready to fly",
+    )
+    p.add_argument("directory", help="project directory (created if missing)")
+    p.add_argument("--name", default="", help="project name")
+    p.add_argument("--ask", default="", help="what the owner wants built")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_start)
 
     p = sub.add_parser(
         "retro",
