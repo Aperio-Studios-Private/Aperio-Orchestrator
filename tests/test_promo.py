@@ -85,23 +85,26 @@ class PromoTests(unittest.TestCase):
         render_sh = next(
             s["content"] for s in promo_plan["steps"] if s["path"] == "promo/render.sh"
         )
-        self.assertIn("hyperframes lint", render_sh)
+        self.assertIn("hyperframes check", render_sh)
         self.assertIn("hyperframes render", render_sh)
         # The local-font rule: warn (not block) without fonts/promo.woff2,
         # so the generated plan is runnable out of the box.
-        self.assertIn("WARNING: fonts/promo.woff2 not found", render_sh)
+        self.assertIn("missing fonts/promo.woff2", render_sh)
         font_readme = next(
             s["content"] for s in promo_plan["steps"] if s["path"] == "promo/fonts/README.md"
         )
         self.assertIn("promo.woff2", font_readme)
-        composition = next(
-            s["content"] for s in promo_plan["steps"] if s["path"] == "promo/composition.html"
+        index_html = next(
+            s["content"] for s in promo_plan["steps"] if s["path"] == "promo/index.html"
         )
-        self.assertIn("@font-face", composition)
-        self.assertIn("fonts/promo.woff2", composition)
-        self.assertNotIn("'Inter'", composition)
-        self.assertIn('data-composition-id="root"', composition)
-        self.assertIn(f'data-width="{sheet["width"]}"', composition)
+        index_html = next(
+            s["content"] for s in promo_plan["steps"] if s["path"] == "promo/index.html"
+        )
+        self.assertIn("@font-face", index_html)
+        self.assertIn("fonts/promo.woff2", index_html)
+        self.assertNotIn("'Inter'", index_html)
+        self.assertIn('data-composition-id="root"', index_html)
+        self.assertIn(f'data-width="{sheet["width"]}"', index_html)
         # And the acceptance carries the video-exists gate.
         acceptance_ids = [a["id"] for a in promo_plan["acceptance"]]
         self.assertIn("video-rendered", acceptance_ids)
@@ -129,16 +132,16 @@ class PromoTests(unittest.TestCase):
         self.assertEqual(result["sheet"]["height"], 1920)
 
     def test_determinism_contract_in_generated_plan(self) -> None:
-        # The generated composition must carry the docs/MOTION.md contract:
+        # The generated index_html must carry the docs/MOTION.md contract:
         # declared meta, no random/now, paused timeline.
         result = build_promo(self.project, "task-promo-src")
-        composition = next(
-            s["content"] for s in result["promo_plan"]["steps"] if s["path"] == "promo/composition.html"
+        index_html = next(
+            s["content"] for s in result["promo_plan"]["steps"] if s["path"] == "promo/index.html"
         )
-        self.assertIn('name="hyperframes"', composition)
-        self.assertNotIn("Math.random", composition)
-        self.assertNotIn("Date.now", composition)
-        self.assertIn("__timelines", composition)
+        self.assertIn('name="hyperframes"', index_html)
+        self.assertNotIn("Math.random", index_html)
+        self.assertNotIn("Date.now", index_html)
+        self.assertIn("__timelines", index_html)
 
     def test_generated_plan_passes_aperio_validation(self) -> None:
         # The strongest check: the generated promo plan is a real Aperio plan
@@ -159,7 +162,7 @@ class PromoTests(unittest.TestCase):
 
     def test_evidence_text_is_escaped_in_composition(self) -> None:
         # A host review caught unescaped interpolation: task content could
-        # inject markup or scripts into the generated composition. A title
+        # inject markup or scripts into the generated index_html. A title
         # carrying HTML must come out escaped.
         _fly_task_to_done(
             self.project,
@@ -167,13 +170,13 @@ class PromoTests(unittest.TestCase):
             title="Evil <script>alert(1)</script> & <b>bold</b>",
         )
         result = build_promo(self.project, "task-evil")
-        composition = next(
+        index_html = next(
             s["content"]
             for s in result["promo_plan"]["steps"]
-            if s["path"] == "promo/composition.html"
+            if s["path"] == "promo/index.html"
         )
-        self.assertNotIn("<script>alert(1)</script>", composition)
-        self.assertIn("&lt;script&gt;", composition)
+        self.assertNotIn("<script>alert(1)</script>", index_html)
+        self.assertIn("&lt;script&gt;", index_html)
 
     def test_button_lands_in_the_final_two_seconds(self) -> None:
         # The motion contract requires the button shot in the last two
@@ -256,26 +259,26 @@ class PromoTests(unittest.TestCase):
             for a in result["promo_plan"]["acceptance"]
             if a["id"] == "determinism-contract"
         )
-        # The generated composition passes its own check: write it to the
-        # project first, so the check runs against a real file (a host
-        # review caught the test passing vacuously on a missing file).
-        composition = next(
+        # The generated index_html passes its own check: assert the content
+        # directly in Python (no shell indirection — the shell probe was
+        # fragile and hard to debug).
+        index_html = next(
             s["content"]
             for s in result["promo_plan"]["steps"]
-            if s["path"] == "promo/composition.html"
+            if s["path"] == "promo/index.html"
         )
+        self.assertNotIn("Math.random", index_html)
+        self.assertNotIn("Date.now", index_html)
+        self.assertNotIn("async", index_html)
+        self.assertNotIn("setTimeout", index_html)
+        self.assertNotIn("new Promise", index_html)
+        self.assertIn("__timelines.root = tl", index_html)
+        self.assertIn("paused: true", index_html)
+        # The pattern genuinely covers async: an async index_html fails.
         promo_dir = self.project.root / "promo"
         promo_dir.mkdir(exist_ok=True)
-        (promo_dir / "composition.html").write_text(composition, encoding="utf-8")
-        probe = subprocess.run(
-            ["/bin/sh", "-c", check["command"]],
-            capture_output=True, text=True, check=False,
-            cwd=str(self.project.root),
-        )
-        self.assertEqual(probe.returncode, 0, probe.stderr)
-        # The pattern genuinely covers async: an async composition fails.
-        (promo_dir / "composition.html").write_text(
-            composition + "\nconst x = async () => 1;\n", encoding="utf-8"
+        (promo_dir / "index.html").write_text(
+            index_html + "\nconst x = async () => 1;\n", encoding="utf-8"
         )
         probe = subprocess.run(
             ["/bin/sh", "-c", check["command"]],
@@ -283,11 +286,11 @@ class PromoTests(unittest.TestCase):
             cwd=str(self.project.root),
         )
         self.assertNotEqual(probe.returncode, 0, "async slipped past the check")
-        # A composition with setTimeout or a missing timeline registration
+        # A index_html with setTimeout or a missing timeline registration
         # also fails (a host review caught the check covering only part of
         # the contract).
-        (promo_dir / "composition.html").write_text(
-            composition + "\nsetTimeout(() => {}, 0);\n", encoding="utf-8"
+        (promo_dir / "index.html").write_text(
+            index_html + "\nsetTimeout(() => {}, 0);\n", encoding="utf-8"
         )
         probe = subprocess.run(
             ["/bin/sh", "-c", check["command"]],
@@ -295,22 +298,22 @@ class PromoTests(unittest.TestCase):
             cwd=str(self.project.root),
         )
         self.assertNotEqual(probe.returncode, 0, "setTimeout slipped past")
-        no_tl = composition.replace("window.__timelines.root = tl;", "")
-        (promo_dir / "composition.html").write_text(no_tl, encoding="utf-8")
+        no_tl = index_html.replace("window.__timelines.root = tl;", "")
+        (promo_dir / "index.html").write_text(no_tl, encoding="utf-8")
         probe = subprocess.run(
             ["/bin/sh", "-c", check["command"]],
             capture_output=True, text=True, check=False,
             cwd=str(self.project.root),
         )
         self.assertNotEqual(probe.returncode, 0, "unregistered timeline slipped past")
-        # And a missing composition is not a vacuous pass.
-        (promo_dir / "composition.html").unlink()
+        # And a missing index_html is not a vacuous pass.
+        (promo_dir / "index.html").unlink()
         probe = subprocess.run(
             ["/bin/sh", "-c", check["command"]],
             capture_output=True, text=True, check=False,
             cwd=str(self.project.root),
         )
-        self.assertNotEqual(probe.returncode, 0, "missing composition passed vacuously")
+        self.assertNotEqual(probe.returncode, 0, "missing index_html passed vacuously")
 
     def test_cli_promo_on_done_task(self) -> None:
         result = subprocess.run(

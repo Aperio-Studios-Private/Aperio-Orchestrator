@@ -234,7 +234,7 @@ def build_promo(
         "allowed_paths": ["promo/"],
         "steps": [
             _write_step("promo/shot-sheet.json", json.dumps(sheet, indent=2) + "\n"),
-            _write_step("promo/composition.html", composition),
+            _write_step("promo/index.html", composition),
             _write_step("promo/check_video.py", _probe_script()),
             _write_step(
                 "promo/fonts/README.md",
@@ -405,12 +405,10 @@ def _render_script(width: int, height: int, duration: int) -> str:
         "set -e\n"
         "cd \"$(dirname \"$0\")\"\n"
         "if [ ! -f fonts/promo.woff2 ]; then\n"
-        "  echo \"WARNING: fonts/promo.woff2 not found — falling back to a system sans-serif.\" >&2\n"
-        "  echo \"For deterministic production renders, place a licensed .woff2 there (docs/MOTION.md).\" >&2\n"
+        "  echo \"missing fonts/promo.woff2: place a licensed .woff2 there (docs/MOTION.md local-font rule)\" >&2\n"
+        "  exit 1\n"
         "fi\n"
-        "npx hyperframes lint composition.html\n"
-        "npx hyperframes render --composition composition.html "
-        "--fps 30 --output promo.mp4 || "
-        "test -s promo.mp4\n"
+        "npx hyperframes check .\n"
+        "npx hyperframes render . --output promo.mp4\n"
         "echo \"rendered promo.mp4\"\n"
     )
