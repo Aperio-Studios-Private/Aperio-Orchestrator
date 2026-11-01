@@ -11,7 +11,7 @@ Aperio generates the PLAN; it does not render. The promo plan is an ordinary
 Aperio plan: it goes through the same approval gate, runs under the same
 bounds, and its acceptance checks (lint, validate, times-sum, artifact
 exists) are enforced the same way. Rendering itself requires the HyperFrames
-toolchain, which the owner installs through `apero tool` — never a core
+toolchain, which the owner installs through `aperio tool` — never a core
 dependency.
 """
 
@@ -266,7 +266,7 @@ def build_promo(
             "The promo plan is a normal Aperio plan: approve it, run it, verify it. "
             "Its render step executes promo/render.sh, which runs `npx hyperframes "
             "lint && validate && render` — install the HyperFrames toolchain (Node 22+) "
-            "through `apero tool` BEFORE running the plan; without it the render step "
+            "through `aperio tool` BEFORE running the plan; without it the render step "
             "fails closed. Rendering is a declared, owner-approved plan step, not an "
             "Aperio built-in."
         ),
@@ -286,9 +286,14 @@ def _acceptance(cid: str, command: str) -> dict[str, Any]:
 # Guards on file existence first: grep on a missing file exits nonzero,
 # which the negation would turn into a vacuous pass (a host review caught
 # the acceptance check passing without the composition present).
+# The full docs/MOTION.md determinism contract: no Math.random, Date.now,
+# async, setTimeout, or Promise; the root timeline must be paused and
+# registered at window.__timelines.root.
 NO_RANDOM_COMMAND = (
     "test -f promo/composition.html && "
-    "! grep -rnE 'Math\\.random|Date\\.now|\\basync\\b' promo/composition.html"
+    "! grep -rnE 'Math\\.random|Date\\.now|\\basync\\b|setTimeout|new Promise' promo/composition.html && "
+    "grep -q '__timelines.root = tl' promo/composition.html && "
+    "grep -q 'paused: true' promo/composition.html"
 )
 
 # The rendered MP4 must exist and match the shot sheet's declared duration
@@ -393,7 +398,7 @@ def _probe_script() -> str:
 def _render_script(width: int, height: int, duration: int) -> str:
     return (
         "#!/bin/sh\n"
-        "# Validate and render the promo with HyperFrames (installed via `apero tool`).\n"
+        "# Validate and render the promo with HyperFrames (installed via `aperio tool`).\n"
         "# The motion contract's gate is lint && validate before render; flags follow\n"
         "# the installed HyperFrames version and may need adjusting.\n"
         "set -e\n"

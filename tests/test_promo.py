@@ -281,6 +281,26 @@ class PromoTests(unittest.TestCase):
             cwd=str(self.project.root),
         )
         self.assertNotEqual(probe.returncode, 0, "async slipped past the check")
+        # A composition with setTimeout or a missing timeline registration
+        # also fails (a host review caught the check covering only part of
+        # the contract).
+        (promo_dir / "composition.html").write_text(
+            composition + "\nsetTimeout(() => {}, 0);\n", encoding="utf-8"
+        )
+        probe = subprocess.run(
+            ["/bin/sh", "-c", check["command"]],
+            capture_output=True, text=True, check=False,
+            cwd=str(self.project.root),
+        )
+        self.assertNotEqual(probe.returncode, 0, "setTimeout slipped past")
+        no_tl = composition.replace("window.__timelines.root = tl;", "")
+        (promo_dir / "composition.html").write_text(no_tl, encoding="utf-8")
+        probe = subprocess.run(
+            ["/bin/sh", "-c", check["command"]],
+            capture_output=True, text=True, check=False,
+            cwd=str(self.project.root),
+        )
+        self.assertNotEqual(probe.returncode, 0, "unregistered timeline slipped past")
         # And a missing composition is not a vacuous pass.
         (promo_dir / "composition.html").unlink()
         probe = subprocess.run(
