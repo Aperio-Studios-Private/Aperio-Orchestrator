@@ -116,6 +116,7 @@ See [docs/HOST-PROOFS.md](docs/HOST-PROOFS.md) for the exact host commands and o
 - Lessons ledger: `apero lesson add` records what went wrong bound to task and paths; `plan` surfaces lessons whose paths intersect the plan — the project's mistakes compound instead of repeating.
 - MCP facade: `apero mcp` serves the read-only advisors (next, explain, status, lessons, doctor) over JSON-RPC 2.0 on stdio with zero dependencies — any MCP-capable host can consult Aperio's gates. Write tools are excluded by design.
 - Tutorial flight simulator: `aperio tutorial build <dir>` creates a practice fixture with every gate pre-satisfied; the learner flies the loop; `aperio tutorial check <dir>` grades the flight from real state.
+- SkillSpector verifier: `apero skill verify <dir>` statically scans any skill BEFORE installation (adapted from NVIDIA SkillSpector): prompt injection, anti-refusal, exfiltration, Trojan-Source characters, AST behavioral rules for bundled scripts, weighted risk score and the SAFE/CAUTION/DO-NOT-INSTALL install gate.
 - Gate explainer: `aperio explain <topic>` teaches each gate — what it checks, why it exists, and this project's live status; strictly read-only.
 - Next-action advisor: `aperio next` reads the state and names the single next legal action, the exact command, and which gate requires it; strictly read-only.
 - Generated read-only status dashboard: `aperio dashboard` writes self-contained HTML from the state files with no scripts or network.
