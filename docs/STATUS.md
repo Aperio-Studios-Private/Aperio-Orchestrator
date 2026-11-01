@@ -47,7 +47,7 @@
 | MCP tests | 14 passed | same command; `tests/test_mcp.py` |
 | Installer tests | 23 passed | same command; `tests/test_installer.py` |
 | PowerShell installer | install, launcher version, uninstall, check, update with backup, and rollback pass under `pwsh` 7.6.7 on macOS | `tests/test_installer.py::test_powershell_installer`, `test_powershell_update_check_and_rollback` |
-| Total test suite | 368 passed | same command |
+| Total test suite | 373 passed | same command |
 | CLI end-to-end | passed | `tests/test_cli.py::test_full_cli_flow` |
 | Discovery core | 10 universal + 10 conditional questions persist; evidence, research requests, explicit owner waivers with review dates, and readiness survive restart | `tests/test_discovery.py`; `aperio discover status` |
 | Discovery plan gate | a valid plan is refused until discovery is ready; an explicit owner waiver allows it with a warning; a plan is invalidated if discovery changes before approval or run; plan body and discovery digest are checked again at run | `tests/test_cli.py::test_plan_without_discovery_is_refused`; `tests/test_discovery.py::test_plan_is_invalidated_by_discovery_change`, `test_plan_body_tamper_after_approval_is_refused` |
@@ -147,7 +147,7 @@
 
 ## Known limits
 
-- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 368-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
+- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 373-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
 - Host steps are OS-sandboxed only when a plan sets `sandbox: true` (same boundary as shell/read steps); otherwise changes are detected after execution. Sandboxed host dispatch is proven with the fake host; a live host under the sandbox is not yet recorded.
 - `review --host` supports only the reviewer adapters (claude, codex, dsh, goose); opencode, kilocode, cline, and agy are dispatch-only adapters for `run`.
 - URL inspection rejects private and credential URLs and revalidates redirects, but DNS rebinding during host resolution is not fully prevented.
