@@ -117,6 +117,19 @@ def create(
             raise SkillError("refusing to overwrite a skill not owned by this project registry")
         target.mkdir(parents=True, exist_ok=True)
         replace_text_atomic(skill_file, _skill_md(name, purpose, cleaned, body))
+        # SkillSpector gate: verify the generated skill before saving it to
+        # the registry (the owner's directive: before installing any skill,
+        # the agent must verify it). Generated scaffolds should always pass,
+        # but a body carrying user-supplied content could trip the detector.
+        from .skillspector import scan
+
+        report = scan(target)
+        if report["risk_assessment"]["severity"] == "DO NOT INSTALL":
+            raise SkillError(
+                f"skill '{name}' failed the SkillSpector verification gate: "
+                f"score {report['risk_assessment']['score']}, "
+                f"{len(report['issues'])} finding(s); remove the flagged content and retry"
+            )
         record = {
             "name": name,
             "purpose": purpose,

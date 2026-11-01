@@ -15,7 +15,7 @@
 | Mediator tests | 6 passed | same command; `tests/test_mediator.py` |
 | CLI tests | 16 passed | same command; `tests/test_cli.py` |
 | Learning tests | 10 passed | same command; `tests/test_learning.py` |
-| Skill tests | 8 passed | same command; `tests/test_skillgen.py` |
+| Skill tests | 9 passed | same command; `tests/test_skillgen.py` |
 | Toolchain tests | 8 passed | same command; `tests/test_toolchain.py` |
 | Dashboard tests | 7 passed | same command; `tests/test_dashboard.py` |
 | Security tests | 8 passed | same command; `tests/test_security.py` |
@@ -41,13 +41,13 @@
 | Retro | `apero retro <task-id>` audits a completed task's environment: classifies violations into improvement actions, identifies existence-only acceptance checks, surfaces active lessons, and reports gate coverage gaps. Read-only: a test asserts no writes. Accepts any non-planned task — the retro is most useful on failed tasks | `src/aperio/retro.py`; `src/aperio/cli.py::cmd_retro`; `tests/test_retro.py` |
 | SkillSpector verifier | `apero skill verify <dir>` statically scans a skill directory BEFORE installation (never executes it): prompt-injection/anti-refusal/exfiltration/credential regex categories, Trojan-Source bidi and zero-width character detection, whitespace padding, AST behavioral rules for bundled Python (exec/eval/compile/__import__/subprocess/os.system/reflective getattr), weighted risk score with the executable multiplier, and the SkillSpector gate mapping (SAFE=allow, CAUTION=surface to owner, DO NOT INSTALL=block with exit 1). Adapted from NVIDIA SkillSpector (Apache-2.0) as a stdlib-only port (attribution in module docstring); static-only limits documented | `src/aperio/skillspector.py`; `src/aperio/cli.py::cmd_skill_verify`; `tests/test_skillspector.py` |
 | Promo tests | 14 passed | same command; `tests/test_promo.py` |
-| SkillSpector tests | 13 passed |
+| SkillSpector tests | 14 passed |
 | Retro tests | 8 passed |
 | Lessons tests | 8 passed | same command; `tests/test_lessons.py` |
 | MCP tests | 14 passed | same command; `tests/test_mcp.py` |
 | Installer tests | 23 passed | same command; `tests/test_installer.py` |
 | PowerShell installer | install, launcher version, uninstall, check, update with backup, and rollback pass under `pwsh` 7.6.7 on macOS | `tests/test_installer.py::test_powershell_installer`, `test_powershell_update_check_and_rollback` |
-| Total test suite | 367 passed | same command |
+| Total test suite | 368 passed | same command |
 | CLI end-to-end | passed | `tests/test_cli.py::test_full_cli_flow` |
 | Discovery core | 10 universal + 10 conditional questions persist; evidence, research requests, explicit owner waivers with review dates, and readiness survive restart | `tests/test_discovery.py`; `aperio discover status` |
 | Discovery plan gate | a valid plan is refused until discovery is ready; an explicit owner waiver allows it with a warning; a plan is invalidated if discovery changes before approval or run; plan body and discovery digest are checked again at run | `tests/test_cli.py::test_plan_without_discovery_is_refused`; `tests/test_discovery.py::test_plan_is_invalidated_by_discovery_change`, `test_plan_body_tamper_after_approval_is_refused` |
@@ -147,7 +147,7 @@
 
 ## Known limits
 
-- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 367-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
+- Independent Claude and adversarial subagent audits found and narrowed the boundary issues; the remaining limits are documented in `SECURITY.md`. The 368-test suite is not a whole-repository audit. Reviewer identity is a label, not a cryptographic identity. Discovery answers are recorded by the agent on the owner's behalf; owner identity is not cryptographically verified. See `docs/AUDIT-CODEX-20261026.md` and `docs/AUDIT-CLAUDE-20261026.md`.
 - Host steps are OS-sandboxed only when a plan sets `sandbox: true` (same boundary as shell/read steps); otherwise changes are detected after execution. Sandboxed host dispatch is proven with the fake host; a live host under the sandbox is not yet recorded.
 - `review --host` supports only the reviewer adapters (claude, codex, dsh, goose); opencode, kilocode, cline, and agy are dispatch-only adapters for `run`.
 - URL inspection rejects private and credential URLs and revalidates redirects, but DNS rebinding during host resolution is not fully prevented.

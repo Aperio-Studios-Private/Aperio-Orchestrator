@@ -792,7 +792,7 @@ Measured on 2026-10-26 in the fresh v2 tree. Re-measure before relying on any ro
 | Mediator tests | **6 passed** | same command; `tests/test_mediator.py` |
 | CLI tests | **16 passed** | same command; `tests/test_cli.py` |
 | Learning tests | **10 passed** | same command; `tests/test_learning.py` |
-| Skill tests | **8 passed** | same command; `tests/test_skillgen.py` |
+| Skill tests | **9 passed** | same command; `tests/test_skillgen.py` |
 | Toolchain tests | **8 passed** | same command; `tests/test_toolchain.py` |
 | Dashboard tests | **7 passed** | same command; `tests/test_dashboard.py` |
 | Security tests | **8 passed** | same command; `tests/test_security.py` |
@@ -804,7 +804,7 @@ Measured on 2026-10-26 in the fresh v2 tree. Re-measure before relying on any ro
 | Audit tests | **16 passed** | same command; `tests/test_audit.py` |
 | Repo tests | **4 passed** | same command; `tests/test_repo.py` |
 | Installer tests | **23 passed** | same command; `tests/test_installer.py` |
-| Total test suite | **367 passed** | same command |
+| Total test suite | **368 passed** | same command |
 | CLI end-to-end | **passed**: unapproved run refused, approved run applied, acceptance passed, review confirmed, done | `tests/test_cli.py::test_full_cli_flow` |
 | Demo project | **applied, verified, reviewed, done** | `examples/demo-site-plan.json` through the CLI |
 | Rollback | **restores modified files and removes created files** | `tests/test_core.py::test_rollback_restores_modified_and_removes_created` |
