@@ -21,6 +21,7 @@ import html
 import json
 from typing import Any
 
+from .runner import RunError
 from .store import Project
 
 
@@ -150,16 +151,15 @@ def build_promo(
     # The cited review evidence must exist, match the task review, and carry
     # a valid signature — the same bar finish() applies (a host review
     # caught generation citing unvalidated review records).
-    review_rows = [
-        row
-        for row in project.evidence_readonly(task_id)
-        if row.get("review_id")
-        and str(row.get("reviewer", "")).strip().lower() == review.reviewer.strip().lower()
-        and str(row.get("verdict", "")).lower() == review.verdict
-    ]
-    if not review_rows:
-        raise PromoError("the confirmed review's evidence record is missing")
-    review_evidence = review_rows[-1]
+    from .runner import RunError as RunnerRunError
+    from .runner import _current_review
+
+    try:
+        review_evidence = _current_review(project, task)
+    except RunnerRunError as exc:
+        raise PromoError(f"the confirmed review's evidence is missing: {exc}") from exc
+    if str(review_evidence.get("reviewer", "")).strip().lower() != review.reviewer.strip().lower():
+        raise PromoError("the current review evidence does not match the task's review")
     signed_core = {
         k: review_evidence[k]
         for k in ("review_id", "task_id", "reviewer", "verdict", "notes", "at")
@@ -176,7 +176,7 @@ def build_promo(
     # The promo cites the CURRENT verification, validated for staleness:
     # a stale or failed record must never be presented as proof (a host
     # review caught generation trusting verify_id alone).
-    from .runner import RunError, _current_verification
+    from .runner import _current_verification
 
     try:
         current = _current_verification(project, task)
@@ -235,6 +235,7 @@ def build_promo(
         "steps": [
             _write_step("promo/shot-sheet.json", json.dumps(sheet, indent=2) + "\n"),
             _write_step("promo/composition.html", composition),
+            _write_step("promo/check_video.py", _probe_script()),
             _write_step(
                 "promo/fonts/README.md",
                 "Place a licensed .woff2 font here named `promo.woff2`.\n"
@@ -255,7 +256,7 @@ def build_promo(
             _acceptance("determinism-contract", NO_RANDOM_COMMAND),
             _acceptance("composition-declared", "grep -q 'name=\"hyperframes\"' promo/composition.html"),
             _acceptance("render-script-present", "test -f promo/render.sh"),
-            _acceptance("video-rendered", "test -s promo/promo.mp4"),
+            _acceptance("video-rendered", VIDEO_CHECK_COMMAND.format(duration=duration, fps=30)),
         ],
     }
     return {
@@ -282,8 +283,20 @@ def _acceptance(cid: str, command: str) -> dict[str, Any]:
     return {"id": cid, "command": command}
 
 
+# Guards on file existence first: grep on a missing file exits nonzero,
+# which the negation would turn into a vacuous pass (a host review caught
+# the acceptance check passing without the composition present).
 NO_RANDOM_COMMAND = (
+    "test -f promo/composition.html && "
     "! grep -rnE 'Math\\.random|Date\\.now|\\basync\\b' promo/composition.html"
+)
+
+# The rendered MP4 must exist and match the shot sheet's declared duration
+# and fps (ffprobe-validated; a missing ffprobe fails the check rather than
+# waving the file through).
+VIDEO_CHECK_COMMAND = (
+    "test -s promo/promo.mp4 && "
+    "python3 promo/check_video.py promo/promo.mp4 {duration} {fps}"
 )
 
 
@@ -357,6 +370,23 @@ def _composition_html(sheet: dict[str, Any]) -> str:
         + "\n".join(scene_js)
         + "\nwindow.__timelines.root = tl;\n"
         "</script></body></html>\n"
+    )
+
+
+def _probe_script() -> str:
+    return (
+        "import json, math, subprocess, sys\n"
+        "path, want_dur, want_fps = sys.argv[1], float(sys.argv[2]), float(sys.argv[3])\n"
+        "data = json.loads(subprocess.run(\n"
+        "    ['ffprobe', '-v', 'error', '-select_streams', 'v:0',\n"
+        "     '-show_entries', 'stream=avg_frame_rate:format=duration',\n"
+        "     '-of', 'json', path], capture_output=True, text=True, check=True).stdout)\n"
+        "dur = float(data['format']['duration'])\n"
+        "num, den = data['streams'][0]['avg_frame_rate'].split('/')\n"
+        "fps = float(num) / float(den)\n"
+        "assert abs(dur - want_dur) <= 0.5, f'duration {dur} != {want_dur}'\n"
+        "assert abs(fps - want_fps) < 0.01, f'fps {fps} != {want_fps}'\n"
+        "print(f'video OK: {dur}s @ {fps}fps')\n"
     )
 
 

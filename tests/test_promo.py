@@ -73,7 +73,7 @@ class PromoTests(unittest.TestCase):
         promo_plan = result["promo_plan"]
         self.assertEqual(promo_plan["allowed_paths"], ["promo/"])
         writes = [s for s in promo_plan["steps"] if s["kind"] == "write"]
-        self.assertEqual(len(writes), 4)
+        self.assertEqual(len(writes), 5)
         for step in writes:
             self.assertTrue(step["path"].startswith("promo/"))
         # The render is a declared run step (a host review caught it missing).
@@ -153,7 +153,7 @@ class PromoTests(unittest.TestCase):
         plan = Plan.from_dict(data)
         self.project.save_plan(plan)
         loaded = self.project.get_plan("plan-generated")
-        self.assertEqual(len(loaded.steps), 5)
+        self.assertEqual(len(loaded.steps), 6)
 
     def test_evidence_text_is_escaped_in_composition(self) -> None:
         # A host review caught unescaped interpolation: task content could
@@ -254,15 +254,41 @@ class PromoTests(unittest.TestCase):
             for a in result["promo_plan"]["acceptance"]
             if a["id"] == "determinism-contract"
         )
-        # The generated composition passes its own check...
+        # The generated composition passes its own check: write it to the
+        # project first, so the check runs against a real file (a host
+        # review caught the test passing vacuously on a missing file).
+        composition = next(
+            s["content"]
+            for s in result["promo_plan"]["steps"]
+            if s["path"] == "promo/composition.html"
+        )
+        promo_dir = self.project.root / "promo"
+        promo_dir.mkdir(exist_ok=True)
+        (promo_dir / "composition.html").write_text(composition, encoding="utf-8")
         probe = subprocess.run(
             ["/bin/sh", "-c", check["command"]],
             capture_output=True, text=True, check=False,
             cwd=str(self.project.root),
         )
         self.assertEqual(probe.returncode, 0, probe.stderr)
-        # ...and the pattern genuinely covers async.
-        self.assertIn("async", check["command"])
+        # The pattern genuinely covers async: an async composition fails.
+        (promo_dir / "composition.html").write_text(
+            composition + "\nconst x = async () => 1;\n", encoding="utf-8"
+        )
+        probe = subprocess.run(
+            ["/bin/sh", "-c", check["command"]],
+            capture_output=True, text=True, check=False,
+            cwd=str(self.project.root),
+        )
+        self.assertNotEqual(probe.returncode, 0, "async slipped past the check")
+        # And a missing composition is not a vacuous pass.
+        (promo_dir / "composition.html").unlink()
+        probe = subprocess.run(
+            ["/bin/sh", "-c", check["command"]],
+            capture_output=True, text=True, check=False,
+            cwd=str(self.project.root),
+        )
+        self.assertNotEqual(probe.returncode, 0, "missing composition passed vacuously")
 
     def test_cli_promo_on_done_task(self) -> None:
         result = subprocess.run(
